@@ -329,8 +329,10 @@ supported_targets! {
     ("i686-unknown-haiku", i686_unknown_haiku),
     ("x86_64-unknown-haiku", x86_64_unknown_haiku),
 
-    ("x86_64-apple-darwin", x86_64_apple_darwin),
     ("i686-apple-darwin", i686_apple_darwin),
+    ("powerpc-apple-darwin", powerpc_apple_darwin),
+    ("powerpc64-apple-darwin", powerpc64_apple_darwin),
+    ("x86_64-apple-darwin", x86_64_apple_darwin),
 
     ("aarch64-fuchsia", aarch64_fuchsia),
     ("x86_64-fuchsia", x86_64_fuchsia),
