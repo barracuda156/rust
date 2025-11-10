@@ -760,14 +760,6 @@ impl Build {
                            .filter(|s| !s.starts_with("-O") && !s.starts_with("/O"))
                            .collect::<Vec<String>>();
 
-        // If we're compiling on macOS then we add a few unconditional flags
-        // indicating that we want libc++ (more filled out than libstdc++) and
-        // we want to compile for 10.7. This way we can ensure that
-        // LLVM/etc are all properly compiled.
-        if target.contains("apple-darwin") {
-            base.push("-stdlib=libc++".into());
-        }
-
         // Work around an apparently bad MinGW / GCC optimization,
         // See: http://lists.llvm.org/pipermail/cfe-dev/2016-December/051980.html
         // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=78936
