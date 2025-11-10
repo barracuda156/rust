@@ -167,6 +167,8 @@ pub fn target_machine_factory(sess: &Session, optlvl: config::OptLevel, find_fea
 
     let asm_comments = sess.asm_comments();
 
+    let enforce_emulated_tls = sess.target.enforce_emulated_tls;
+
     Arc::new(move || {
         let tm = unsafe {
             llvm::LLVMRustCreateTargetMachine(
@@ -182,6 +184,7 @@ pub fn target_machine_factory(sess: &Session, optlvl: config::OptLevel, find_fea
                 singlethread,
                 asm_comments,
                 emit_stack_size_section,
+                enforce_emulated_tls,
             )
         };
 

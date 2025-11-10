@@ -1513,6 +1513,9 @@ pub fn default_configuration(sess: &Session) -> ast::CrateConfig {
     if sess.target.target.options.has_elf_tls {
         ret.insert((sym::target_thread_local, None));
     }
+    if sess.target.enforce_emulated_tls {
+        ret.insert((sym::target_enforce_emulated_tls, None));
+    }
     for &i in &[8, 16, 32, 64, 128] {
         if i >= min_atomic_width && i <= max_atomic_width {
             let s = i.to_string();

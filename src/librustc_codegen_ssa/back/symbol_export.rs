@@ -339,6 +339,57 @@ fn is_unreachable_local_definition_provider(tcx: TyCtxt<'_>, def_id: DefId) -> b
     }
 }
 
+fn maybe_emutls(
+    tcx: TyCtxt<'_>,
+    def_id: DefId,
+    name: String,
+) -> String {
+    if tcx.codegen_fn_attrs(def_id).flags.contains(CodegenFnAttrFlags::THREAD_LOCAL) {
+        ["__emutls_v", &name].join(".").to_string()
+    } else {
+        name
+    }
+}
+
+/// This is the symbol name of the given exported symbol, with emulated TLS prefix if needed
+pub fn symbol_name_for_exported_symbol_maybe_emutls<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    symbol: ExportedSymbol<'tcx>,
+    instantiating_crate: CrateNum,
+) -> String {
+    if !tcx.sess.target.target.options.enforce_emulated_tls {
+        return symbol.symbol_name(tcx).to_string();
+    }
+
+    match symbol {
+        ExportedSymbol::NonGeneric(def_id) => {
+            let base_name = if instantiating_crate == LOCAL_CRATE {
+                tcx.symbol_name(Instance::mono(tcx, def_id)).to_string()
+            } else {
+                rustc_symbol_mangling::symbol_name_for_instance_in_crate(
+                    tcx,
+                    Instance::mono(tcx, def_id),
+                    instantiating_crate,
+                )
+            };
+            maybe_emutls(tcx, def_id, base_name)
+        }
+        ExportedSymbol::Generic(def_id, substs) => {
+            let base_name = if instantiating_crate == LOCAL_CRATE {
+                tcx.symbol_name(Instance::new(def_id, substs)).to_string()
+            } else {
+                rustc_symbol_mangling::symbol_name_for_instance_in_crate(
+                    tcx,
+                    Instance::new(def_id, substs),
+                    instantiating_crate,
+                )
+            };
+            maybe_emutls(tcx, def_id, base_name)
+        }
+        ExportedSymbol::NoDefId(symbol_name) => symbol_name.to_string(),
+    }
+}
+
 pub fn provide(providers: &mut Providers<'_>) {
     providers.reachable_non_generics = reachable_non_generics_provider;
     providers.is_reachable_non_generic = is_reachable_non_generic_provider_local;

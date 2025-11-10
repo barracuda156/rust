@@ -695,6 +695,9 @@ pub struct TargetOptions {
     /// Flag indicating whether ELF TLS (e.g., #[thread_local]) is available for
     /// this target.
     pub has_elf_tls: bool,
+    /// Flag indicating whether emulated TLS should be enforced.
+    pub enforce_emulated_tls: bool,
+
     // This is mainly for easy compatibility with emscripten.
     // If we give emcc .o files that are actually .bc files it
     // will 'just work'.
@@ -851,6 +854,7 @@ impl Default for TargetOptions {
             custom_unwind_resume: false,
             allow_asm: true,
             has_elf_tls: false,
+            enforce_emulated_tls: false,
             obj_is_bitcode: false,
             no_integrated_as: false,
             min_atomic_width: None,
@@ -1160,6 +1164,7 @@ impl Target {
         key!(allow_asm, bool);
         key!(custom_unwind_resume, bool);
         key!(has_elf_tls, bool);
+        key!(enforce_emulated_tls, bool);
         key!(obj_is_bitcode, bool);
         key!(no_integrated_as, bool);
         key!(max_atomic_width, Option<u64>);
@@ -1377,6 +1382,7 @@ impl ToJson for Target {
         target_option_val!(allow_asm);
         target_option_val!(custom_unwind_resume);
         target_option_val!(has_elf_tls);
+        target_option_val!(enforce_emulated_tls);
         target_option_val!(obj_is_bitcode);
         target_option_val!(no_integrated_as);
         target_option_val!(min_atomic_width);

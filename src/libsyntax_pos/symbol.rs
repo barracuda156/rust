@@ -652,6 +652,7 @@ symbols! {
         struct_variant,
         sty,
         suggestion,
+        target_enforce_emulated_tls,
         target_feature,
         target_has_atomic,
         target_thread_local,

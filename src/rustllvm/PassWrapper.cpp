@@ -350,7 +350,8 @@ extern "C" LLVMTargetMachineRef LLVMRustCreateTargetMachine(
     bool TrapUnreachable,
     bool Singlethread,
     bool AsmComments,
-    bool EmitStackSizeSection) {
+    bool EmitStackSizeSection,
+    bool EnforceEmulatedTLS) {
 
   auto OptLevel = fromRust(RustOptLevel);
   auto RM = fromRust(RustReloc);
@@ -388,6 +389,11 @@ extern "C" LLVMTargetMachineRef LLVMRustCreateTargetMachine(
   }
 
   Options.EmitStackSizeSection = EmitStackSizeSection;
+
+  if (EnforceEmulatedTLS) {
+    Options.EmulatedTLS = true;
+    Options.ExplicitEmulatedTLS = true;
+  }
 
   Optional<CodeModel::Model> CM;
   if (RustCM != LLVMRustCodeModel::None)
