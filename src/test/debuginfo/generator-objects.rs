@@ -1,4 +1,5 @@
-// Require a gdb that can read DW_TAG_variant_part.
+// Require LLVM with DW_TAG_variant_part and a gdb that can read it.
+// min-system-llvm-version: 8.0
 // min-gdb-version: 8.2
 
 // LLDB without native Rust support cannot read DW_TAG_variant_part,

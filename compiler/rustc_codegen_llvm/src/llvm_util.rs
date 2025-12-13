@@ -95,10 +95,12 @@ unsafe fn configure_llvm(sess: &Session) {
             add("-enable-machine-outliner=never", false);
         }
 
-        match sess.opts.debugging_opts.merge_functions.unwrap_or(sess.target.merge_functions) {
-            MergeFunctions::Disabled | MergeFunctions::Trampolines => {}
-            MergeFunctions::Aliases => {
-                add("-mergefunc-use-aliases", false);
+        if get_major_version() >= 8 {
+            match sess.opts.debugging_opts.merge_functions.unwrap_or(sess.target.merge_functions) {
+                MergeFunctions::Disabled | MergeFunctions::Trampolines => {}
+                MergeFunctions::Aliases => {
+                    add("-mergefunc-use-aliases", false);
+                }
             }
         }
 
