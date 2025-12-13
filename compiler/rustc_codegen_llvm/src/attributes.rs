@@ -71,12 +71,21 @@ fn naked(val: &'ll Value, is_naked: bool) {
 
 pub fn set_frame_pointer_elimination(cx: &CodegenCx<'ll, '_>, llfn: &'ll Value) {
     if cx.sess().must_not_eliminate_frame_pointers() {
-        llvm::AddFunctionAttrStringValue(
-            llfn,
-            llvm::AttributePlace::Function,
-            cstr!("frame-pointer"),
-            cstr!("all"),
-        );
+        if llvm_util::get_version() >= (8, 0, 0) {
+            llvm::AddFunctionAttrStringValue(
+                llfn,
+                llvm::AttributePlace::Function,
+                cstr!("frame-pointer"),
+                cstr!("all"),
+            );
+        } else {
+            llvm::AddFunctionAttrStringValue(
+                llfn,
+                llvm::AttributePlace::Function,
+                cstr!("no-frame-pointer-elim"),
+                cstr!("true"),
+            );
+        }
     }
 }
 

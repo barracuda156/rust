@@ -114,7 +114,9 @@ extern "C" LLVMValueRef LLVMRustGetOrInsertFunction(LLVMModuleRef M,
   return wrap(unwrap(M)
                   ->getOrInsertFunction(StringRef(Name, NameLen),
                                         unwrap<FunctionType>(FunctionTy))
+#if LLVM_VERSION_GE(9, 0)
                   .getCallee()
+#endif
   );
 }
 
@@ -196,74 +198,175 @@ static Attribute::AttrKind fromRust(LLVMRustAttribute Kind) {
   case InaccessibleMemOnly:
     return Attribute::InaccessibleMemOnly;
   case SanitizeHWAddress:
+#if LLVM_VERSION_GE(8, 0)
     return Attribute::SanitizeHWAddress;
+#else
+    report_fatal_error("SanitizeHWAddress not supported in LLVM < 8");
+#endif
   case WillReturn:
+#if LLVM_VERSION_GE(9, 0)
     return Attribute::WillReturn;
+#else
+    report_fatal_error("WillReturn not supported in LLVM < 9");
+#endif
   }
   report_fatal_error("bad AttributeKind");
 }
 
+#if LLVM_VERSION_GE(9, 0)
+  #define LLVM_CALL_INST_OR_INVOKE_BASE CallBase
+#else
+  // For LLVM < 9, we need to handle CallInst and InvokeInst separately
+  #define LLVM_CALL_INST_OR_INVOKE_BASE Instruction
+#endif
+
 extern "C" void LLVMRustAddCallSiteAttribute(LLVMValueRef Instr, unsigned Index,
                                              LLVMRustAttribute RustAttr) {
+#if LLVM_VERSION_GE(9, 0)
   CallBase *Call = unwrap<CallBase>(Instr);
   Attribute Attr = Attribute::get(Call->getContext(), fromRust(RustAttr));
   Call->addAttribute(Index, Attr);
+#else
+  Instruction *I = unwrap<Instruction>(Instr);
+  Attribute Attr = Attribute::get(I->getContext(), fromRust(RustAttr));
+  if (CallInst *CI = dyn_cast<CallInst>(I)) {
+    CI->addAttribute(Index, Attr);
+  } else if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
+    II->addAttribute(Index, Attr);
+  }
+#endif
 }
 
 extern "C" void LLVMRustAddCallSiteAttrString(LLVMValueRef Instr, unsigned Index,
                                               const char *Name) {
+#if LLVM_VERSION_GE(9, 0)
   CallBase *Call = unwrap<CallBase>(Instr);
   Attribute Attr = Attribute::get(Call->getContext(), Name);
   Call->addAttribute(Index, Attr);
+#else
+  Instruction *I = unwrap<Instruction>(Instr);
+  Attribute Attr = Attribute::get(I->getContext(), Name);
+  if (CallInst *CI = dyn_cast<CallInst>(I)) {
+    CI->addAttribute(Index, Attr);
+  } else if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
+    II->addAttribute(Index, Attr);
+  }
+#endif
 }
-
 
 extern "C" void LLVMRustAddAlignmentCallSiteAttr(LLVMValueRef Instr,
                                                  unsigned Index,
                                                  uint32_t Bytes) {
+#if LLVM_VERSION_GE(9, 0)
   CallBase *Call = unwrap<CallBase>(Instr);
   AttrBuilder B;
   B.addAlignmentAttr(Bytes);
   Call->setAttributes(Call->getAttributes().addAttributes(
       Call->getContext(), Index, B));
+#else
+  Instruction *I = unwrap<Instruction>(Instr);
+  AttrBuilder B;
+  B.addAlignmentAttr(Bytes);
+  if (CallInst *CI = dyn_cast<CallInst>(I)) {
+    CI->setAttributes(CI->getAttributes().addAttributes(
+        CI->getContext(), Index, B));
+  } else if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
+    II->setAttributes(II->getAttributes().addAttributes(
+        II->getContext(), Index, B));
+  }
+#endif
 }
 
 extern "C" void LLVMRustAddDereferenceableCallSiteAttr(LLVMValueRef Instr,
                                                        unsigned Index,
                                                        uint64_t Bytes) {
+#if LLVM_VERSION_GE(9, 0)
   CallBase *Call = unwrap<CallBase>(Instr);
   AttrBuilder B;
   B.addDereferenceableAttr(Bytes);
   Call->setAttributes(Call->getAttributes().addAttributes(
       Call->getContext(), Index, B));
+#else
+  Instruction *I = unwrap<Instruction>(Instr);
+  AttrBuilder B;
+  B.addDereferenceableAttr(Bytes);
+  if (CallInst *CI = dyn_cast<CallInst>(I)) {
+    CI->setAttributes(CI->getAttributes().addAttributes(
+        CI->getContext(), Index, B));
+  } else if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
+    II->setAttributes(II->getAttributes().addAttributes(
+        II->getContext(), Index, B));
+  }
+#endif
 }
 
 extern "C" void LLVMRustAddDereferenceableOrNullCallSiteAttr(LLVMValueRef Instr,
                                                              unsigned Index,
                                                              uint64_t Bytes) {
+#if LLVM_VERSION_GE(9, 0)
   CallBase *Call = unwrap<CallBase>(Instr);
   AttrBuilder B;
   B.addDereferenceableOrNullAttr(Bytes);
   Call->setAttributes(Call->getAttributes().addAttributes(
       Call->getContext(), Index, B));
+#else
+  Instruction *I = unwrap<Instruction>(Instr);
+  AttrBuilder B;
+  B.addDereferenceableOrNullAttr(Bytes);
+  if (CallInst *CI = dyn_cast<CallInst>(I)) {
+    CI->setAttributes(CI->getAttributes().addAttributes(
+        CI->getContext(), Index, B));
+  } else if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
+    II->setAttributes(II->getAttributes().addAttributes(
+        II->getContext(), Index, B));
+  }
+#endif
 }
 
 extern "C" void LLVMRustAddByValCallSiteAttr(LLVMValueRef Instr, unsigned Index,
                                              LLVMTypeRef Ty) {
+#if LLVM_VERSION_GE(9, 0)
   CallBase *Call = unwrap<CallBase>(Instr);
   Attribute Attr = Attribute::getWithByValType(Call->getContext(), unwrap(Ty));
   Call->addAttribute(Index, Attr);
+#elif LLVM_VERSION_GE(8, 0)
+  Instruction *I = unwrap<Instruction>(Instr);
+  Attribute Attr = Attribute::get(I->getContext(), Attribute::ByVal);
+  if (CallInst *CI = dyn_cast<CallInst>(I)) {
+    CI->addAttribute(Index, Attr);
+  } else if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
+    II->addAttribute(Index, Attr);
+  }
+#else
+  Instruction *I = unwrap<Instruction>(Instr);
+  Attribute Attr = Attribute::get(I->getContext(), Attribute::ByVal);
+  if (CallInst *CI = dyn_cast<CallInst>(I)) {
+    CI->addAttribute(Index, Attr);
+  } else if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
+    II->addAttribute(Index, Attr);
+  }
+#endif
 }
 
 extern "C" void LLVMRustAddStructRetCallSiteAttr(LLVMValueRef Instr, unsigned Index,
                                                  LLVMTypeRef Ty) {
-  CallBase *Call = unwrap<CallBase>(Instr);
 #if LLVM_VERSION_GE(12, 0)
+  CallBase *Call = unwrap<CallBase>(Instr);
   Attribute Attr = Attribute::getWithStructRetType(Call->getContext(), unwrap(Ty));
-#else
-  Attribute Attr = Attribute::get(Call->getContext(), Attribute::StructRet);
-#endif
   Call->addAttribute(Index, Attr);
+#elif LLVM_VERSION_GE(9, 0)
+  CallBase *Call = unwrap<CallBase>(Instr);
+  Attribute Attr = Attribute::get(Call->getContext(), Attribute::StructRet);
+  Call->addAttribute(Index, Attr);
+#else
+  Instruction *I = unwrap<Instruction>(Instr);
+  Attribute Attr = Attribute::get(I->getContext(), Attribute::StructRet);
+  if (CallInst *CI = dyn_cast<CallInst>(I)) {
+    CI->addAttribute(Index, Attr);
+  } else if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
+    II->addAttribute(Index, Attr);
+  }
+#endif
 }
 
 extern "C" void LLVMRustAddFunctionAttribute(LLVMValueRef Fn, unsigned Index,
@@ -303,7 +406,11 @@ extern "C" void LLVMRustAddDereferenceableOrNullAttr(LLVMValueRef Fn,
 extern "C" void LLVMRustAddByValAttr(LLVMValueRef Fn, unsigned Index,
                                      LLVMTypeRef Ty) {
   Function *F = unwrap<Function>(Fn);
+#if LLVM_VERSION_GE(9, 0)
   Attribute Attr = Attribute::getWithByValType(F->getContext(), unwrap(Ty));
+#else
+  Attribute Attr = Attribute::get(F->getContext(), Attribute::ByVal);
+#endif
   F->addAttribute(Index, Attr);
 }
 
@@ -533,6 +640,11 @@ static DINode::DIFlags fromRust(LLVMRustDIFlags Flags) {
   if (isSet(Flags & LLVMRustDIFlags::FlagAppleBlock)) {
     Result |= DINode::DIFlags::FlagAppleBlock;
   }
+#if LLVM_VERSION_LT(10, 0)
+  if (isSet(Flags & LLVMRustDIFlags::FlagBlockByrefStruct)) {
+    Result |= DINode::DIFlags::FlagBlockByrefStruct;
+  }
+#endif
   if (isSet(Flags & LLVMRustDIFlags::FlagVirtual)) {
     Result |= DINode::DIFlags::FlagVirtual;
   }
@@ -612,6 +724,7 @@ inline LLVMRustDISPFlags virtuality(LLVMRustDISPFlags F) {
   return static_cast<LLVMRustDISPFlags>(static_cast<uint32_t>(F) & 0x3);
 }
 
+#if LLVM_VERSION_GE(8, 0)
 static DISubprogram::DISPFlags fromRust(LLVMRustDISPFlags SPFlags) {
   DISubprogram::DISPFlags Result = DISubprogram::DISPFlags::SPFlagZero;
 
@@ -636,12 +749,15 @@ static DISubprogram::DISPFlags fromRust(LLVMRustDISPFlags SPFlags) {
   if (isSet(SPFlags & LLVMRustDISPFlags::SPFlagOptimized)) {
     Result |= DISubprogram::DISPFlags::SPFlagOptimized;
   }
+#if LLVM_VERSION_GE(9, 0)
   if (isSet(SPFlags & LLVMRustDISPFlags::SPFlagMainSubprogram)) {
     Result |= DISubprogram::DISPFlags::SPFlagMainSubprogram;
   }
+#endif
 
   return Result;
 }
+#endif
 
 enum class LLVMRustDebugEmissionKind {
   NoDebug,
@@ -763,8 +879,13 @@ extern "C" LLVMMetadataRef LLVMRustDIBuilderCreateFunction(
     LLVMMetadataRef Decl) {
   DITemplateParameterArray TParams =
       DITemplateParameterArray(unwrap<MDTuple>(TParam));
+#if LLVM_VERSION_GE(8, 0)
   DISubprogram::DISPFlags llvmSPFlags = fromRust(SPFlags);
   DINode::DIFlags llvmFlags = fromRust(Flags);
+#if LLVM_VERSION_LT(9, 0)
+  if (isSet(SPFlags & LLVMRustDISPFlags::SPFlagMainSubprogram))
+    llvmFlags |= DINode::DIFlags::FlagMainSubprogram;
+#endif
   DISubprogram *Sub = Builder->createFunction(
       unwrapDI<DIScope>(Scope),
       StringRef(Name, NameLen),
@@ -772,6 +893,22 @@ extern "C" LLVMMetadataRef LLVMRustDIBuilderCreateFunction(
       unwrapDI<DIFile>(File), LineNo,
       unwrapDI<DISubroutineType>(Ty), ScopeLine, llvmFlags,
       llvmSPFlags, TParams, unwrapDIPtr<DISubprogram>(Decl));
+#else
+  bool IsLocalToUnit = isSet(SPFlags & LLVMRustDISPFlags::SPFlagLocalToUnit);
+  bool IsDefinition = isSet(SPFlags & LLVMRustDISPFlags::SPFlagDefinition);
+  bool IsOptimized = isSet(SPFlags & LLVMRustDISPFlags::SPFlagOptimized);
+  DINode::DIFlags llvmFlags = fromRust(Flags);
+  if (isSet(SPFlags & LLVMRustDISPFlags::SPFlagMainSubprogram))
+    llvmFlags |= DINode::DIFlags::FlagMainSubprogram;
+  DISubprogram *Sub = Builder->createFunction(
+      unwrapDI<DIScope>(Scope),
+      StringRef(Name, NameLen),
+      StringRef(LinkageName, LinkageNameLen),
+      unwrapDI<DIFile>(File), LineNo,
+      unwrapDI<DISubroutineType>(Ty), IsLocalToUnit, IsDefinition,
+      ScopeLine, llvmFlags, IsOptimized, TParams,
+      unwrapDIPtr<DISubprogram>(Decl));
+#endif
   if (MaybeFn)
     unwrap<Function>(MaybeFn)->setSubprogram(Sub);
   return wrap(Sub);
@@ -897,9 +1034,13 @@ extern "C" LLVMMetadataRef LLVMRustDIBuilderCreateStaticVariable(
       unwrapDI<DIDescriptor>(Context), StringRef(Name, NameLen),
       StringRef(LinkageName, LinkageNameLen),
       unwrapDI<DIFile>(File), LineNo, unwrapDI<DIType>(Ty), IsLocalToUnit,
+#if LLVM_VERSION_GE(10, 0)
       /* isDefined */ true,
+#endif
       InitExpr, unwrapDIPtr<MDNode>(Decl),
+#if LLVM_VERSION_GE(8, 0)
       /* templateParams */ nullptr,
+#endif
       AlignInBits);
 
   InitVal->setMetadata("dbg", VarExpr);
@@ -1097,7 +1238,11 @@ extern "C" void LLVMRustUnpackOptimizationDiagnostic(
   if (loc.isValid()) {
     *Line = loc.getLine();
     *Column = loc.getColumn();
+#if LLVM_VERSION_GE(8, 0)
     FilenameOS << loc.getAbsolutePath();
+#else
+    FilenameOS << loc.getFilename();
+#endif
   }
 
   RawRustStringOstream MessageOS(MessageOut);
@@ -1400,8 +1545,18 @@ extern "C" LLVMValueRef LLVMRustBuildCall(LLVMBuilderRef B, LLVMValueRef Fn,
   FunctionType *FTy = cast<FunctionType>(Callee->getType()->getPointerElementType());
   unsigned Len = Bundle ? 1 : 0;
   ArrayRef<OperandBundleDef> Bundles = makeArrayRef(Bundle, Len);
+#if LLVM_VERSION_GE(8, 0)
   return wrap(unwrap(B)->CreateCall(
       FTy, Callee, makeArrayRef(unwrap(Args), NumArgs), Bundles));
+#else
+  if (Len > 0) {
+    return wrap(unwrap(B)->CreateCall(
+        Callee, makeArrayRef(unwrap(Args), NumArgs), Bundles));
+  } else {
+    return wrap(unwrap(B)->CreateCall(
+        Callee, makeArrayRef(unwrap(Args), NumArgs)));
+  }
+#endif
 }
 
 extern "C" LLVMValueRef LLVMRustGetInstrProfIncrementIntrinsic(LLVMModuleRef M) {
@@ -1413,28 +1568,47 @@ extern "C" LLVMValueRef LLVMRustBuildMemCpy(LLVMBuilderRef B,
                                             LLVMValueRef Dst, unsigned DstAlign,
                                             LLVMValueRef Src, unsigned SrcAlign,
                                             LLVMValueRef Size, bool IsVolatile) {
+#if LLVM_VERSION_GE(10, 0)
   return wrap(unwrap(B)->CreateMemCpy(
       unwrap(Dst), MaybeAlign(DstAlign),
       unwrap(Src), MaybeAlign(SrcAlign),
       unwrap(Size), IsVolatile));
+#else
+  return wrap(unwrap(B)->CreateMemCpy(
+      unwrap(Dst), DstAlign,
+      unwrap(Src), SrcAlign,
+      unwrap(Size), IsVolatile));
+#endif
 }
 
 extern "C" LLVMValueRef LLVMRustBuildMemMove(LLVMBuilderRef B,
                                              LLVMValueRef Dst, unsigned DstAlign,
                                              LLVMValueRef Src, unsigned SrcAlign,
                                              LLVMValueRef Size, bool IsVolatile) {
+#if LLVM_VERSION_GE(10, 0)
   return wrap(unwrap(B)->CreateMemMove(
       unwrap(Dst), MaybeAlign(DstAlign),
       unwrap(Src), MaybeAlign(SrcAlign),
       unwrap(Size), IsVolatile));
+#else
+  return wrap(unwrap(B)->CreateMemMove(
+      unwrap(Dst), DstAlign,
+      unwrap(Src), SrcAlign,
+      unwrap(Size), IsVolatile));
+#endif
 }
 
 extern "C" LLVMValueRef LLVMRustBuildMemSet(LLVMBuilderRef B,
                                             LLVMValueRef Dst, unsigned DstAlign,
                                             LLVMValueRef Val,
                                             LLVMValueRef Size, bool IsVolatile) {
+#if LLVM_VERSION_GE(10, 0)
   return wrap(unwrap(B)->CreateMemSet(
       unwrap(Dst), unwrap(Val), unwrap(Size), MaybeAlign(DstAlign), IsVolatile));
+#else
+  return wrap(unwrap(B)->CreateMemSet(
+      unwrap(Dst), unwrap(Val), unwrap(Size), DstAlign, IsVolatile));
+#endif
 }
 
 extern "C" LLVMValueRef
@@ -1446,9 +1620,21 @@ LLVMRustBuildInvoke(LLVMBuilderRef B, LLVMValueRef Fn, LLVMValueRef *Args,
   FunctionType *FTy = cast<FunctionType>(Callee->getType()->getPointerElementType());
   unsigned Len = Bundle ? 1 : 0;
   ArrayRef<OperandBundleDef> Bundles = makeArrayRef(Bundle, Len);
+#if LLVM_VERSION_GE(8, 0)
   return wrap(unwrap(B)->CreateInvoke(FTy, Callee, unwrap(Then), unwrap(Catch),
                                       makeArrayRef(unwrap(Args), NumArgs),
                                       Bundles, Name));
+#else
+  if (Len > 0) {
+    return wrap(unwrap(B)->CreateInvoke(Callee, unwrap(Then), unwrap(Catch),
+                                        makeArrayRef(unwrap(Args), NumArgs),
+                                        Bundles, Name));
+  } else {
+    return wrap(unwrap(B)->CreateInvoke(Callee, unwrap(Then), unwrap(Catch),
+                                        makeArrayRef(unwrap(Args), NumArgs),
+                                        Name));
+  }
+#endif
 }
 
 extern "C" void LLVMRustPositionBuilderAtStart(LLVMBuilderRef B,
@@ -1624,7 +1810,11 @@ struct LLVMRustModuleBuffer {
 
 extern "C" LLVMRustModuleBuffer*
 LLVMRustModuleBufferCreate(LLVMModuleRef M) {
+#if LLVM_VERSION_GE(10, 0)
   auto Ret = std::make_unique<LLVMRustModuleBuffer>();
+#else
+  auto Ret = llvm::make_unique<LLVMRustModuleBuffer>();
+#endif
   {
     raw_string_ostream OS(Ret->data);
     {
@@ -1744,6 +1934,7 @@ extern "C" LLVMRustResult LLVMRustWriteImportLibrary(
   ConvertedExports.reserve(NumExports);
 
   for (size_t i = 0; i < NumExports; ++i) {
+#if LLVM_VERSION_GE(8, 0)
     ConvertedExports.push_back(llvm::object::COFFShortExport{
       Exports[i].name,  // Name
       std::string{},    // ExtName
@@ -1755,6 +1946,17 @@ extern "C" LLVMRustResult LLVMRustWriteImportLibrary(
       false,            // Private
       false             // Constant
     });
+#else
+    llvm::object::COFFShortExport exp;
+    exp.Name = Exports[i].name;
+    exp.ExtName = "";
+    exp.Ordinal = 0;
+    exp.Noname = false;
+    exp.Data = false;
+    exp.Private = false;
+    exp.Constant = false;
+    ConvertedExports.push_back(exp);
+#endif
   }
 
   auto Error = llvm::object::writeImportLibrary(
