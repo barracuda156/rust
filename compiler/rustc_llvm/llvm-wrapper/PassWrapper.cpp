@@ -67,9 +67,13 @@ extern "C" void LLVMInitializePasses() {
 }
 
 extern "C" void LLVMTimeTraceProfilerInitialize() {
+#if LLVM_VERSION_GE(10, 0)
   timeTraceProfilerInitialize(
       /* TimeTraceGranularity */ 0,
       /* ProcName */ "rustc");
+#else
+  timeTraceProfilerInitialize();
+#endif
 }
 
 extern "C" void LLVMTimeTraceProfilerFinish(const char* FileName) {
@@ -591,6 +595,7 @@ enum class LLVMRustFileType {
   ObjectFile,
 };
 
+#if LLVM_VERSION_GE(10, 0)
 static CodeGenFileType fromRust(LLVMRustFileType Type) {
   switch (Type) {
   case LLVMRustFileType::AssemblyFile:
@@ -601,6 +606,18 @@ static CodeGenFileType fromRust(LLVMRustFileType Type) {
     report_fatal_error("Bad FileType.");
   }
 }
+#else
+static TargetMachine::CodeGenFileType fromRust(LLVMRustFileType Type) {
+  switch (Type) {
+  case LLVMRustFileType::AssemblyFile:
+    return TargetMachine::CGFT_AssemblyFile;
+  case LLVMRustFileType::ObjectFile:
+    return TargetMachine::CGFT_ObjectFile;
+  default:
+    report_fatal_error("Bad FileType.");
+  }
+}
+#endif
 
 extern "C" LLVMRustResult
 LLVMRustWriteOutputFile(LLVMTargetMachineRef Target, LLVMPassManagerRef PMR,
@@ -876,11 +893,13 @@ LLVMRustOptimizeWithNewPassManager(
         }
       );
 #else
+#if LLVM_VERSION_GE(10, 0)
       PipelineStartEPCallbacks.push_back(
         [Options](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
           MPM.addPass(MemorySanitizerPass(Options));
         }
       );
+#endif
       OptimizerLastEPCallbacks.push_back(
         [Options](FunctionPassManager &FPM, PassBuilder::OptimizationLevel Level) {
           FPM.addPass(MemorySanitizerPass(Options));
@@ -898,11 +917,13 @@ LLVMRustOptimizeWithNewPassManager(
         }
       );
 #else
+#if LLVM_VERSION_GE(10, 0)
       PipelineStartEPCallbacks.push_back(
         [](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
           MPM.addPass(ThreadSanitizerPass());
         }
       );
+#endif
       OptimizerLastEPCallbacks.push_back(
         [](FunctionPassManager &FPM, PassBuilder::OptimizationLevel Level) {
           FPM.addPass(ThreadSanitizerPass());
@@ -997,11 +1018,13 @@ LLVMRustOptimizeWithNewPassManager(
 
       MPM.addPass(AlwaysInlinerPass(EmitLifetimeMarkers));
 
+# if LLVM_VERSION_GE(10, 0)
       if (PGOOpt) {
         PB.addPGOInstrPassesForO0(
             MPM, DebugPassManager, PGOOpt->Action == PGOOptions::IRInstr,
             /*IsCS=*/false, PGOOpt->ProfileFile, PGOOpt->ProfileRemappingFile);
       }
+# endif
 #endif
     } else {
 #if LLVM_VERSION_GE(12, 0)
@@ -1381,7 +1404,11 @@ LLVMRustCreateThinLTOData(LLVMRustThinLTOModule *modules,
                           int num_modules,
                           const char **preserved_symbols,
                           int num_symbols) {
+#if LLVM_VERSION_GE(10, 0)
   auto Ret = std::make_unique<LLVMRustThinLTOData>();
+#else
+  auto Ret = llvm::make_unique<LLVMRustThinLTOData>();
+#endif
 
   // Load each module's summary and merge it into one combined index
   for (int i = 0; i < num_modules; i++) {
@@ -1474,6 +1501,7 @@ LLVMRustCreateThinLTOData(LLVMRustThinLTOModule *modules,
         ExportedGUIDs.insert(GUID);
     }
   }
+#if LLVM_VERSION_GE(10, 0)
   auto isExported = [&](StringRef ModuleIdentifier, ValueInfo VI) {
     const auto &ExportList = Ret->ExportLists.find(ModuleIdentifier);
     return (ExportList != Ret->ExportLists.end() &&
@@ -1481,6 +1509,15 @@ LLVMRustCreateThinLTOData(LLVMRustThinLTOModule *modules,
       ExportedGUIDs.count(VI.getGUID());
   };
   thinLTOInternalizeAndPromoteInIndex(Ret->Index, isExported, isPrevailing);
+#else
+  auto isExported = [&](StringRef ModuleIdentifier, GlobalValue::GUID GUID) {
+    const auto &ExportList = Ret->ExportLists.find(ModuleIdentifier);
+    return (ExportList != Ret->ExportLists.end() &&
+      ExportList->second.count(GUID)) ||
+      ExportedGUIDs.count(GUID);
+  };
+  thinLTOInternalizeAndPromoteInIndex(Ret->Index, isExported);
+#endif
 
   return Ret.release();
 }
@@ -1637,7 +1674,11 @@ struct LLVMRustThinLTOBuffer {
 
 extern "C" LLVMRustThinLTOBuffer*
 LLVMRustThinLTOBufferCreate(LLVMModuleRef M) {
+#if LLVM_VERSION_GE(10, 0)
   auto Ret = std::make_unique<LLVMRustThinLTOBuffer>();
+#else
+  auto Ret = llvm::make_unique<LLVMRustThinLTOBuffer>();
+#endif
   {
     raw_string_ostream OS(Ret->data);
     {

@@ -2,6 +2,7 @@
 #![allow(non_camel_case_types)]
 
 // ignore-emscripten
+// min-system-llvm-version: 9.0
 
 // Test that the simd_reduce_{op} intrinsics produce the correct results.
 

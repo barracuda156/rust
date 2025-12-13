@@ -36,9 +36,10 @@ pub fn image_base() -> u64 {
     let base: u64;
     unsafe {
         asm!(
-            "lea {}, qword ptr [rip + IMAGE_BASE]",
+            "lea IMAGE_BASE(%rip), {}",
             lateout(reg) base,
-            options(nostack, preserves_flags, nomem, pure),
+            // NOTE(#76738): ATT syntax is used to support LLVM 8 and 9.
+            options(att_syntax, nostack, preserves_flags, nomem, pure),
         )
     };
     base
