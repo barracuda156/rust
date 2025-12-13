@@ -17,7 +17,9 @@
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Object/IRObjectFile.h"
 #include "llvm/Passes/PassBuilder.h"
+#if LLVM_VERSION_GE(9, 0)
 #include "llvm/Passes/StandardInstrumentations.h"
+#endif
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Host.h"
@@ -30,14 +32,20 @@
 #include "llvm-c/Transforms/PassManagerBuilder.h"
 
 #include "llvm/Transforms/Instrumentation.h"
+#if LLVM_VERSION_GE(9, 0)
 #include "llvm/Transforms/Instrumentation/AddressSanitizer.h"
 #include "llvm/Support/TimeProfiler.h"
+#endif
 #include "llvm/Transforms/Instrumentation/GCOVProfiler.h"
 #include "llvm/Transforms/Instrumentation/InstrProfiling.h"
+#if LLVM_VERSION_GE(8, 0)
 #include "llvm/Transforms/Instrumentation/ThreadSanitizer.h"
 #include "llvm/Transforms/Instrumentation/MemorySanitizer.h"
 #include "llvm/Transforms/Instrumentation/HWAddressSanitizer.h"
+#endif
+#if LLVM_VERSION_GE(9, 0)
 #include "llvm/Transforms/Utils/CanonicalizeAliases.h"
+#endif
 #include "llvm/Transforms/Utils/NameAnonGlobals.h"
 
 using namespace llvm;
@@ -67,18 +75,24 @@ extern "C" void LLVMInitializePasses() {
 }
 
 extern "C" void LLVMTimeTraceProfilerInitialize() {
+#if LLVM_VERSION_GE(10, 0)
   timeTraceProfilerInitialize(
       /* TimeTraceGranularity */ 0,
       /* ProcName */ "rustc");
+#elif LLVM_VERSION_GE(9, 0)
+  timeTraceProfilerInitialize();
+#endif
 }
 
 extern "C" void LLVMTimeTraceProfilerFinish(const char* FileName) {
+#if LLVM_VERSION_GE(9, 0)
   StringRef FN(FileName);
   std::error_code EC;
   raw_fd_ostream OS(FN, EC, sys::fs::CD_CreateAlways);
 
   timeTraceProfilerWrite(OS);
   timeTraceProfilerCleanup();
+#endif
 }
 
 enum class LLVMRustPassKind {
@@ -119,25 +133,41 @@ extern "C" LLVMPassRef LLVMRustCreateAddressSanitizerFunctionPass(bool Recover) 
 extern "C" LLVMPassRef LLVMRustCreateModuleAddressSanitizerPass(bool Recover) {
   const bool CompileKernel = false;
 
+#if LLVM_VERSION_GE(9, 0)
   return wrap(createModuleAddressSanitizerLegacyPassPass(CompileKernel, Recover));
+#else
+  return wrap(createAddressSanitizerModulePass(CompileKernel, Recover));
+#endif
 }
 
 extern "C" LLVMPassRef LLVMRustCreateMemorySanitizerPass(int TrackOrigins, bool Recover) {
+#if LLVM_VERSION_GE(9, 0)
   const bool CompileKernel = false;
 
   return wrap(createMemorySanitizerLegacyPassPass(
       MemorySanitizerOptions{TrackOrigins, Recover, CompileKernel}));
+#elif LLVM_VERSION_GE(8, 0)
+  return wrap(createMemorySanitizerLegacyPassPass(TrackOrigins, Recover));
+#else
+  return wrap(createMemorySanitizerPass(TrackOrigins, Recover));
+#endif
 }
 
 extern "C" LLVMPassRef LLVMRustCreateThreadSanitizerPass() {
+#if LLVM_VERSION_GE(8, 0)
   return wrap(createThreadSanitizerLegacyPassPass());
+#else
+  return wrap(createThreadSanitizerPass());
+#endif
 }
 
+#if LLVM_VERSION_GE(8, 0)
 extern "C" LLVMPassRef LLVMRustCreateHWAddressSanitizerPass(bool Recover) {
   const bool CompileKernel = false;
 
   return wrap(createHWAddressSanitizerLegacyPassPass(CompileKernel, Recover));
 }
+#endif
 
 extern "C" LLVMRustPassKind LLVMRustPassKind(LLVMPassRef RustPass) {
   assert(RustPass);
@@ -173,8 +203,10 @@ void LLVMRustAddLastExtensionPasses(
   // so they are run for optimized and non-optimized builds.
   unwrap(PMBR)->addExtension(PassManagerBuilder::EP_OptimizerLast,
                              AddExtensionPasses);
+#if LLVM_VERSION_GE(9, 0)
   unwrap(PMBR)->addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
                              AddExtensionPasses);
+#endif
 }
 
 #ifdef LLVM_COMPONENT_X86
@@ -284,7 +316,11 @@ enum class LLVMRustCodeModel {
 static Optional<CodeModel::Model> fromRust(LLVMRustCodeModel Model) {
   switch (Model) {
   case LLVMRustCodeModel::Tiny:
+#if LLVM_VERSION_GE(9, 0)
     return CodeModel::Tiny;
+#else
+    return CodeModel::Small;
+#endif
   case LLVMRustCodeModel::Small:
     return CodeModel::Small;
   case LLVMRustCodeModel::Kernel:
@@ -392,7 +428,11 @@ extern "C" void LLVMRustPrintTargetCPUs(LLVMTargetMachineRef TM) {
   const MCSubtargetInfo *MCInfo = Target->getMCSubtargetInfo();
   const Triple::ArchType HostArch = Triple(sys::getProcessTriple()).getArch();
   const Triple::ArchType TargetArch = Target->getTargetTriple().getArch();
+#if LLVM_VERSION_GE(9, 0)
   const ArrayRef<SubtargetSubTypeKV> CPUTable = MCInfo->getCPUTable();
+#else
+  const ArrayRef<SubtargetFeatureKV> CPUTable = MCInfo->getCPUTable();
+#endif
   unsigned MaxCPULen = getLongestEntryLength(CPUTable);
 
   printf("Available CPUs for this target:\n");
@@ -591,6 +631,7 @@ enum class LLVMRustFileType {
   ObjectFile,
 };
 
+#if LLVM_VERSION_GE(10, 0)
 static CodeGenFileType fromRust(LLVMRustFileType Type) {
   switch (Type) {
   case LLVMRustFileType::AssemblyFile:
@@ -601,6 +642,18 @@ static CodeGenFileType fromRust(LLVMRustFileType Type) {
     report_fatal_error("Bad FileType.");
   }
 }
+#else
+static TargetMachine::CodeGenFileType fromRust(LLVMRustFileType Type) {
+  switch (Type) {
+  case LLVMRustFileType::AssemblyFile:
+    return TargetMachine::CGFT_AssemblyFile;
+  case LLVMRustFileType::ObjectFile:
+    return TargetMachine::CGFT_ObjectFile;
+  default:
+    report_fatal_error("Bad FileType.");
+  }
+}
+#endif
 
 extern "C" LLVMRustResult
 LLVMRustWriteOutputFile(LLVMTargetMachineRef Target, LLVMPassManagerRef PMR,
@@ -648,6 +701,8 @@ extern "C" typedef void (*LLVMRustSelfProfileBeforePassCallback)(void*, // LlvmS
                                                       const char*,      // pass name
                                                       const char*);     // IR name
 extern "C" typedef void (*LLVMRustSelfProfileAfterPassCallback)(void*); // LlvmSelfProfiler
+
+#if LLVM_VERSION_GE(9, 0)
 
 std::string LLVMRustwrappedIrGetName(const llvm::Any &WrappedIr) {
   if (any_isa<const Module *>(WrappedIr))
@@ -717,6 +772,8 @@ void LLVMSelfProfileInitializeCallbacks(
       });
 }
 
+#endif
+
 enum class LLVMRustOptStage {
   PreLinkNoLTO,
   PreLinkThinLTO,
@@ -732,8 +789,10 @@ struct LLVMRustSanitizerOptions {
   bool SanitizeMemoryRecover;
   int  SanitizeMemoryTrackOrigins;
   bool SanitizeThread;
+#if LLVM_VERSION_GE(8, 0)
   bool SanitizeHWAddress;
   bool SanitizeHWAddressRecover;
+#endif
 };
 
 extern "C" LLVMRustResult
@@ -752,6 +811,7 @@ LLVMRustOptimizeWithNewPassManager(
     LLVMRustSelfProfileBeforePassCallback BeforePassCallback,
     LLVMRustSelfProfileAfterPassCallback AfterPassCallback,
     const char *ExtraPasses, size_t ExtraPassesLen) {
+#if LLVM_VERSION_GE(9, 0)
   Module *TheModule = unwrap(ModuleRef);
   TargetMachine *TM = unwrap(TMRef);
   PassBuilder::OptimizationLevel OptLevel = fromRust(OptLevelRust);
@@ -876,11 +936,13 @@ LLVMRustOptimizeWithNewPassManager(
         }
       );
 #else
+#if LLVM_VERSION_GE(10, 0)
       PipelineStartEPCallbacks.push_back(
         [Options](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
           MPM.addPass(MemorySanitizerPass(Options));
         }
       );
+#endif
       OptimizerLastEPCallbacks.push_back(
         [Options](FunctionPassManager &FPM, PassBuilder::OptimizationLevel Level) {
           FPM.addPass(MemorySanitizerPass(Options));
@@ -898,11 +960,13 @@ LLVMRustOptimizeWithNewPassManager(
         }
       );
 #else
+#if LLVM_VERSION_GE(10, 0)
       PipelineStartEPCallbacks.push_back(
         [](ModulePassManager &MPM, PassBuilder::OptimizationLevel Level) {
           MPM.addPass(ThreadSanitizerPass());
         }
       );
+#endif
       OptimizerLastEPCallbacks.push_back(
         [](FunctionPassManager &FPM, PassBuilder::OptimizationLevel Level) {
           FPM.addPass(ThreadSanitizerPass());
@@ -944,6 +1008,7 @@ LLVMRustOptimizeWithNewPassManager(
       );
 #endif
     }
+#if LLVM_VERSION_GE(8, 0)
     if (SanitizerOptions->SanitizeHWAddress) {
 #if LLVM_VERSION_GE(11, 0)
       OptimizerLastEPCallbacks.push_back(
@@ -961,6 +1026,7 @@ LLVMRustOptimizeWithNewPassManager(
       );
 #endif
     }
+#endif
   }
 
 #if LLVM_VERSION_GE(13, 0)
@@ -997,11 +1063,13 @@ LLVMRustOptimizeWithNewPassManager(
 
       MPM.addPass(AlwaysInlinerPass(EmitLifetimeMarkers));
 
+# if LLVM_VERSION_GE(10, 0)
       if (PGOOpt) {
         PB.addPGOInstrPassesForO0(
             MPM, DebugPassManager, PGOOpt->Action == PGOOptions::IRInstr,
             /*IsCS=*/false, PGOOpt->ProfileFile, PGOOpt->ProfileRemappingFile);
       }
+# endif
 #endif
     } else {
 #if LLVM_VERSION_GE(12, 0)
@@ -1093,6 +1161,11 @@ LLVMRustOptimizeWithNewPassManager(
 
   MPM.run(*TheModule, MAM);
   return LLVMRustResult::Success;
+#else
+  // The new pass manager has been available for a long time,
+  // but we don't bother supporting it on old LLVM versions.
+  report_fatal_error("New pass manager only supported since LLVM 9");
+#endif
 }
 
 // Callback to demangle function name
@@ -1158,10 +1231,18 @@ public:
     const Value *Value;
     if (const CallInst *CI = dyn_cast<CallInst>(I)) {
       Name = "call";
+#if LLVM_VERSION_GE(8, 0)
       Value = CI->getCalledOperand();
+#else
+      Value = CI->getCalledValue();
+#endif
     } else if (const InvokeInst* II = dyn_cast<InvokeInst>(I)) {
       Name = "invoke";
+#if LLVM_VERSION_GE(8, 0)
       Value = II->getCalledOperand();
+#else
+      Value = II->getCalledValue();
+#endif
     } else {
       // Could demangle more operations, e. g.
       // `store %place, @function`.
@@ -1284,7 +1365,9 @@ extern "C" void LLVMRustSetModuleCodeModel(LLVMModuleRef M,
   auto CM = fromRust(Model);
   if (!CM.hasValue())
     return;
+#if LLVM_VERSION_GE(9, 0)
   unwrap(M)->setCodeModel(*CM);
+#endif
 }
 
 // Here you'll find an implementation of ThinLTO as used by the Rust compiler
@@ -1381,7 +1464,11 @@ LLVMRustCreateThinLTOData(LLVMRustThinLTOModule *modules,
                           int num_modules,
                           const char **preserved_symbols,
                           int num_symbols) {
+#if LLVM_VERSION_GE(10, 0)
   auto Ret = std::make_unique<LLVMRustThinLTOData>();
+#else
+  auto Ret = llvm::make_unique<LLVMRustThinLTOData>();
+#endif
 
   // Load each module's summary and merge it into one combined index
   for (int i = 0; i < num_modules; i++) {
@@ -1414,11 +1501,15 @@ LLVMRustCreateThinLTOData(LLVMRustThinLTOModule *modules,
   auto deadIsPrevailing = [&](GlobalValue::GUID G) {
     return PrevailingType::Unknown;
   };
+#if LLVM_VERSION_GE(8, 0)
   // We don't have a complete picture in our use of ThinLTO, just our immediate
   // crate, so we need `ImportEnabled = false` to limit internalization.
   // Otherwise, we sometimes lose `static` values -- see #60184.
   computeDeadSymbolsWithConstProp(Ret->Index, Ret->GUIDPreservedSymbols,
                                   deadIsPrevailing, /* ImportEnabled = */ false);
+#else
+  computeDeadSymbols(Ret->Index, Ret->GUIDPreservedSymbols, deadIsPrevailing);
+#endif
   ComputeCrossModuleImport(
     Ret->Index,
     Ret->ModuleToDefinedGVSummaries,
@@ -1455,9 +1546,13 @@ LLVMRustCreateThinLTOData(LLVMRustThinLTOModule *modules,
   lto::Config conf;
   thinLTOResolvePrevailingInIndex(conf, Ret->Index, isPrevailing, recordNewLinkage,
                                   Ret->GUIDPreservedSymbols);
-#else
+#elif LLVM_VERSION_GE(9, 0)
   thinLTOResolvePrevailingInIndex(Ret->Index, isPrevailing, recordNewLinkage,
                                   Ret->GUIDPreservedSymbols);
+#elif LLVM_VERSION_GE(8, 0)
+  thinLTOResolvePrevailingInIndex(Ret->Index, isPrevailing, recordNewLinkage);
+#else
+  thinLTOResolveWeakForLinkerInIndex(Ret->Index, isPrevailing, recordNewLinkage);
 #endif
   // Here we calculate an `ExportedGUIDs` set for use in the `isExported`
   // callback below. This callback below will dictate the linkage for all
@@ -1474,6 +1569,7 @@ LLVMRustCreateThinLTOData(LLVMRustThinLTOModule *modules,
         ExportedGUIDs.insert(GUID);
     }
   }
+#if LLVM_VERSION_GE(10, 0)
   auto isExported = [&](StringRef ModuleIdentifier, ValueInfo VI) {
     const auto &ExportList = Ret->ExportLists.find(ModuleIdentifier);
     return (ExportList != Ret->ExportLists.end() &&
@@ -1481,6 +1577,15 @@ LLVMRustCreateThinLTOData(LLVMRustThinLTOModule *modules,
       ExportedGUIDs.count(VI.getGUID());
   };
   thinLTOInternalizeAndPromoteInIndex(Ret->Index, isExported, isPrevailing);
+#else
+  auto isExported = [&](StringRef ModuleIdentifier, GlobalValue::GUID GUID) {
+    const auto &ExportList = Ret->ExportLists.find(ModuleIdentifier);
+    return (ExportList != Ret->ExportLists.end() &&
+      ExportList->second.count(GUID)) ||
+      ExportedGUIDs.count(GUID);
+  };
+  thinLTOInternalizeAndPromoteInIndex(Ret->Index, isExported);
+#endif
 
   return Ret.release();
 }
@@ -1535,7 +1640,11 @@ extern "C" bool
 LLVMRustPrepareThinLTOResolveWeak(const LLVMRustThinLTOData *Data, LLVMModuleRef M) {
   Module &Mod = *unwrap(M);
   const auto &DefinedGlobals = Data->ModuleToDefinedGVSummaries.lookup(Mod.getModuleIdentifier());
+#if LLVM_VERSION_GE(8, 0)
   thinLTOResolvePrevailingInModule(Mod, DefinedGlobals);
+#else
+  thinLTOResolveWeakForLinkerModule(Mod, DefinedGlobals);
+#endif
   return true;
 }
 
@@ -1637,7 +1746,11 @@ struct LLVMRustThinLTOBuffer {
 
 extern "C" LLVMRustThinLTOBuffer*
 LLVMRustThinLTOBufferCreate(LLVMModuleRef M) {
+#if LLVM_VERSION_GE(10, 0)
   auto Ret = std::make_unique<LLVMRustThinLTOBuffer>();
+#else
+  auto Ret = llvm::make_unique<LLVMRustThinLTOBuffer>();
+#endif
   {
     raw_string_ostream OS(Ret->data);
     {
@@ -1776,6 +1889,7 @@ LLVMRustThinLTOPatchDICompileUnit(LLVMModuleRef Mod, DICompileUnit *Unit) {
 // used during the normal linker-plugin incremental thin-LTO process.
 extern "C" void
 LLVMRustComputeLTOCacheKey(RustStringRef KeyOut, const char *ModId, LLVMRustThinLTOData *Data) {
+#if LLVM_VERSION_GE(9, 0)
   SmallString<40> Key;
   llvm::lto::Config conf;
   const auto &ImportList = Data->ImportLists.lookup(ModId);
@@ -1798,4 +1912,8 @@ LLVMRustComputeLTOCacheKey(RustStringRef KeyOut, const char *ModId, LLVMRustThin
   );
 
   LLVMRustStringWriteImpl(KeyOut, Key.c_str(), Key.size());
+#else
+  // computeLTOCacheKey doesn't exist in LLVM 7
+  LLVMRustStringWriteImpl(KeyOut, "", 0);
+#endif
 }

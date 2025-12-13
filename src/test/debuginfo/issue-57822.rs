@@ -1,7 +1,8 @@
 // This test makes sure that the LLDB pretty printer does not throw an exception
 // for nested closures and generators.
 
-// Require a gdb that can read DW_TAG_variant_part.
+// Require LLVM with DW_TAG_variant_part and a gdb that can read it.
+// min-system-llvm-version: 8.0
 // min-gdb-version: 8.2
 
 // compile-flags:-g

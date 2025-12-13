@@ -407,6 +407,10 @@ fn get_pgo_use_path(config: &ModuleConfig) -> Option<CString> {
 }
 
 pub(crate) fn should_use_new_llvm_pass_manager(config: &ModuleConfig) -> bool {
+    // We only support the new pass manager starting with LLVM 9.
+    if llvm_util::get_version() < (9, 0, 0) {
+        return false;
+    }
     // The new pass manager is disabled by default.
     config.new_llvm_pass_manager.unwrap_or(false)
 }

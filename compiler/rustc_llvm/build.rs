@@ -70,7 +70,7 @@ fn main() {
     let host = env::var("HOST").expect("HOST was not set");
     let is_crossed = target != host;
 
-    let optional_components = &[
+    let mut optional_components = vec![
         "x86",
         "arm",
         "aarch64",
@@ -85,9 +85,25 @@ fn main() {
         "sparc",
         "nvptx",
         "hexagon",
-        "riscv",
-        "bpf",
     ];
+
+    let mut version_cmd = Command::new(&llvm_config);
+    version_cmd.arg("--version");
+    let version_output = output(&mut version_cmd);
+    let mut parts = version_output.split('.').take(2).filter_map(|s| s.parse::<u32>().ok());
+    let (major, _minor) = if let (Some(major), Some(minor)) = (parts.next(), parts.next()) {
+        (major, minor)
+    } else {
+        (7, 0)
+    };
+
+    if major > 6 {
+        optional_components.push("riscv");
+    }
+
+    if major > 9 {
+        optional_components.push("bpf");
+    }
 
     let required_components = &[
         "ipo",
@@ -112,6 +128,10 @@ fn main() {
 
     for component in components.iter() {
         println!("cargo:rustc-cfg=llvm_component=\"{}\"", component);
+    }
+
+    if major >= 9 {
+        println!("cargo:rustc-cfg=llvm_has_msp430_asm_parser");
     }
 
     // Link in our own LLVM shims, compiled with the same flags as LLVM

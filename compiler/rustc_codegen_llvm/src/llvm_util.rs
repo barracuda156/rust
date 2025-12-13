@@ -95,10 +95,12 @@ unsafe fn configure_llvm(sess: &Session) {
             add("-enable-machine-outliner=never", false);
         }
 
-        match sess.opts.debugging_opts.merge_functions.unwrap_or(sess.target.merge_functions) {
-            MergeFunctions::Disabled | MergeFunctions::Trampolines => {}
-            MergeFunctions::Aliases => {
-                add("-mergefunc-use-aliases", false);
+        if llvm_util::get_version() >= (8, 0, 0) {
+            match sess.opts.debugging_opts.merge_functions.unwrap_or(sess.target.merge_functions) {
+                MergeFunctions::Disabled | MergeFunctions::Trampolines => {}
+                MergeFunctions::Aliases => {
+                    add("-mergefunc-use-aliases", false);
+                }
             }
         }
 
@@ -118,7 +120,7 @@ unsafe fn configure_llvm(sess: &Session) {
         }
     }
 
-    if sess.opts.debugging_opts.llvm_time_trace {
+    if sess.opts.debugging_opts.llvm_time_trace && llvm_util::get_version() >= (9, 0, 0) {
         // time-trace is not thread safe and running it in parallel will cause seg faults.
         if !sess.opts.debugging_opts.no_parallel_llvm {
             bug!("`-Z llvm-time-trace` requires `-Z no-parallel-llvm")
@@ -136,8 +138,10 @@ unsafe fn configure_llvm(sess: &Session) {
 
 pub fn time_trace_profiler_finish(file_name: &str) {
     unsafe {
-        let file_name = CString::new(file_name).unwrap();
-        llvm::LLVMTimeTraceProfilerFinish(file_name.as_ptr());
+        if llvm_util::get_version() >= (9, 0, 0) {
+            let file_name = CString::new(file_name).unwrap();
+            llvm::LLVMTimeTraceProfilerFinish(file_name.as_ptr());
+        }
     }
 }
 

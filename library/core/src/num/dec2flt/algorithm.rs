@@ -62,9 +62,10 @@ mod fpu_precision {
         // any `u16`
         unsafe {
             asm!(
-                "fldcw word ptr [{}]",
+                "fldcw ({})",
                 in(reg) &cw,
-                options(nostack),
+                // We are using ATT syntax to support LLVM 8 and LLVM 9.
+                options(att_syntax, nostack),
             )
         }
     }
@@ -86,9 +87,10 @@ mod fpu_precision {
         // any `u16`
         unsafe {
             asm!(
-                "fnstcw word ptr [{}]",
+                "fnstcw ({})",
                 in(reg) &mut cw,
-                options(nostack),
+                // We are using ATT syntax to support LLVM 8 and LLVM 9.
+                options(att_syntax, nostack),
             )
         }
 
