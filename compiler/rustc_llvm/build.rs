@@ -70,7 +70,7 @@ fn main() {
     let host = env::var("HOST").expect("HOST was not set");
     let is_crossed = target != host;
 
-    let optional_components = &[
+    let mut optional_components = vec![
         "x86",
         "arm",
         "aarch64",
@@ -85,8 +85,6 @@ fn main() {
         "sparc",
         "nvptx",
         "hexagon",
-        "riscv",
-        "bpf",
     ];
 
     let mut version_cmd = Command::new(&llvm_config);
@@ -98,6 +96,14 @@ fn main() {
     } else {
         (7, 0)
     };
+
+    if major > 6 {
+        optional_components.push("riscv");
+    }
+
+    if major > 9 {
+        optional_components.push("bpf");
+    }
 
     let required_components = &[
         "ipo",
