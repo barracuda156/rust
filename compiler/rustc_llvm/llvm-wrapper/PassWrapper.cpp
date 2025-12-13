@@ -201,8 +201,10 @@ void LLVMRustAddLastExtensionPasses(
   // so they are run for optimized and non-optimized builds.
   unwrap(PMBR)->addExtension(PassManagerBuilder::EP_OptimizerLast,
                              AddExtensionPasses);
+#if LLVM_VERSION_GE(9, 0)
   unwrap(PMBR)->addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
                              AddExtensionPasses);
+#endif
 }
 
 #ifdef LLVM_COMPONENT_X86
@@ -420,7 +422,11 @@ extern "C" void LLVMRustPrintTargetCPUs(LLVMTargetMachineRef TM) {
   const MCSubtargetInfo *MCInfo = Target->getMCSubtargetInfo();
   const Triple::ArchType HostArch = Triple(sys::getProcessTriple()).getArch();
   const Triple::ArchType TargetArch = Target->getTargetTriple().getArch();
+#if LLVM_VERSION_GE(9, 0)
   const ArrayRef<SubtargetSubTypeKV> CPUTable = MCInfo->getCPUTable();
+#else
+  const ArrayRef<SubtargetFeatureKV> CPUTable = MCInfo->getCPUTable();
+#endif
   unsigned MaxCPULen = getLongestEntryLength(CPUTable);
 
   printf("Available CPUs for this target:\n");
