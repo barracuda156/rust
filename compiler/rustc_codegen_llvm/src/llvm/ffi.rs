@@ -157,7 +157,6 @@ pub enum Attribute {
     ReturnsTwice = 25,
     ReadNone = 26,
     InaccessibleMemOnly = 27,
-    WillReturn = 28,
 }
 
 /// LLVMIntPredicate
