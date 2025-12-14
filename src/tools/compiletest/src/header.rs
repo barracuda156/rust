@@ -49,7 +49,6 @@ impl EarlyProps {
         let has_lsan = util::LSAN_SUPPORTED_TARGETS.contains(&&*config.target);
         let has_msan = util::MSAN_SUPPORTED_TARGETS.contains(&&*config.target);
         let has_tsan = util::TSAN_SUPPORTED_TARGETS.contains(&&*config.target);
-        let has_hwasan = util::HWASAN_SUPPORTED_TARGETS.contains(&&*config.target);
         // for `-Z gcc-ld=lld`
         let has_rust_lld = config
             .compile_lib_path
@@ -117,10 +116,6 @@ impl EarlyProps {
                 }
 
                 if !has_tsan && config.parse_name_directive(ln, "needs-sanitizer-thread") {
-                    props.ignore = true;
-                }
-
-                if !has_hwasan && config.parse_name_directive(ln, "needs-sanitizer-hwaddress") {
                     props.ignore = true;
                 }
 

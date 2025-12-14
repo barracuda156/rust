@@ -197,12 +197,6 @@ static Attribute::AttrKind fromRust(LLVMRustAttribute Kind) {
     return Attribute::ReadNone;
   case InaccessibleMemOnly:
     return Attribute::InaccessibleMemOnly;
-  case SanitizeHWAddress:
-#if LLVM_VERSION_GE(8, 0)
-    return Attribute::SanitizeHWAddress;
-#else
-    report_fatal_error("SanitizeHWAddress not supported in LLVM < 8");
-#endif
   case WillReturn:
 #if LLVM_VERSION_GE(9, 0)
     return Attribute::WillReturn;
