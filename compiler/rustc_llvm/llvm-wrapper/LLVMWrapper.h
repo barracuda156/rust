@@ -78,7 +78,6 @@ enum LLVMRustAttribute {
   ReturnsTwice = 25,
   ReadNone = 26,
   InaccessibleMemOnly = 27,
-  WillReturn = 28,
 };
 
 typedef struct OpaqueRustString *RustStringRef;

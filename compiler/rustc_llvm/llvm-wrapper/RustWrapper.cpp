@@ -197,12 +197,6 @@ static Attribute::AttrKind fromRust(LLVMRustAttribute Kind) {
     return Attribute::ReadNone;
   case InaccessibleMemOnly:
     return Attribute::InaccessibleMemOnly;
-  case WillReturn:
-#if LLVM_VERSION_GE(9, 0)
-    return Attribute::WillReturn;
-#else
-    report_fatal_error("WillReturn not supported in LLVM < 9");
-#endif
   }
   report_fatal_error("bad AttributeKind");
 }
