@@ -848,11 +848,8 @@ impl Build {
             .filter(|s| !s.starts_with("-O") && !s.starts_with("/O"))
             .collect::<Vec<String>>();
 
-        // If we're compiling on macOS then we add a few unconditional flags
-        // indicating that we want libc++ (more filled out than libstdc++) and
-        // we want to compile for 10.7. This way we can ensure that
-        // LLVM/etc are all properly compiled.
-        if target.contains("apple-darwin") {
+        // Clangs use libc++, ensure that archaic ones pick it as well.
+        if target.contains("apple-darwin") && cc.ends_with("clang") {
             base.push("-stdlib=libc++".into());
         }
 
