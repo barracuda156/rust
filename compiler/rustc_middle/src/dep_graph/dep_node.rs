@@ -287,7 +287,11 @@ pub type DepNode = rustc_query_system::dep_graph::DepNode<DepKind>;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 static_assert_size!(DepNode, 18);
 
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+// PowerPC 64-bit build is not tried out.
+#[cfg(any(target_arch = "powerpc", target_arch = "powerpc64"))]
+static_assert_size!(DepNode, 20);
+
+#[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "powerpc", target_arch = "powerpc64")))]
 static_assert_size!(DepNode, 24);
 
 pub trait DepNodeExt: Sized {
