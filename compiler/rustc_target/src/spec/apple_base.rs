@@ -63,12 +63,17 @@ fn deployment_target(var_name: &str) -> Option<(u32, u32)> {
 }
 
 fn macos_deployment_target() -> (u32, u32) {
-    deployment_target("MACOSX_DEPLOYMENT_TARGET").unwrap_or((10, 7))
+    deployment_target("MACOSX_DEPLOYMENT_TARGET").unwrap_or((10, 6))
 }
 
 pub fn macos_llvm_target(arch: &str) -> String {
     let (major, minor) = macos_deployment_target();
     format!("{}-apple-macosx{}.{}.0", arch, major, minor)
+}
+
+// This has to add darwin versions, for LLVM compatibility, but it does not atm.
+pub fn macos_llvm_target_ppc(arch: &str) -> String {
+    format!("{}-apple-darwin", arch)
 }
 
 pub fn macos_link_env_remove() -> Vec<String> {

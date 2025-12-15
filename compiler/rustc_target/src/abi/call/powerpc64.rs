@@ -1,6 +1,8 @@
 // FIXME:
 // Alignment of 128 bit types is not currently handled, this will
 // need to be fixed when PowerPC vector support is added.
+// FIXME:
+// PowerOpen ABI needs to be actually implemented and added to compute_abi_info below.
 
 use crate::abi::call::{ArgAbi, FnAbi, Reg, RegKind, Uniform};
 use crate::abi::{Endian, HasDataLayout, LayoutOf, TyAndLayout, TyAndLayoutMethods};
@@ -8,8 +10,9 @@ use crate::spec::HasTargetSpec;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ABI {
-    ELFv1, // original ABI used for powerpc64 (big-endian)
+    ELFv1, // ABI used for powerpc64 (big-endian) on Linux and *BSD
     ELFv2, // newer ABI used for powerpc64le and musl (both endians)
+    PowerOpen, // original AIX and macOS ABI
 }
 use ABI::*;
 
@@ -119,7 +122,11 @@ where
     Ty: TyAndLayoutMethods<'a, C> + Copy,
     C: LayoutOf<Ty = Ty, TyAndLayout = TyAndLayout<'a, Ty>> + HasDataLayout + HasTargetSpec,
 {
-    let abi = if cx.target_spec().env == "musl" {
+    let abi = if cx.target_spec().is_like_osx {
+        // FIXME: PowerOpen ABI implementation is incomplete
+        // For now, use ELFv1 as a placeholder since it's similar
+        ELFv1
+    } else if cx.target_spec().env == "musl" {
         ELFv2
     } else {
         match cx.data_layout().endian {
