@@ -3,7 +3,7 @@ use crate::spec::{LinkerFlavor, SanitizerSet, StackProbeType, Target, TargetOpti
 pub fn target() -> Target {
     let mut base = super::apple_base::opts("macos");
     base.cpu = "core2".to_string();
-    base.max_atomic_width = Some(128); // core2 support cmpxchg16b
+    base.max_atomic_width = Some(64); // core2 support cmpxchg16b, but LLVM produces broken code for it.
     base.eliminate_frame_pointer = false;
     base.pre_link_args.insert(
         LinkerFlavor::Gcc,
