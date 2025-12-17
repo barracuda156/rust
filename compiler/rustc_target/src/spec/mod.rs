@@ -327,7 +327,6 @@ impl ToJson for RelocModel {
 
 #[derive(Clone, Copy, PartialEq, Hash, Debug)]
 pub enum CodeModel {
-    Tiny,
     Small,
     Kernel,
     Medium,
@@ -339,7 +338,6 @@ impl FromStr for CodeModel {
 
     fn from_str(s: &str) -> Result<CodeModel, ()> {
         Ok(match s {
-            "tiny" => CodeModel::Tiny,
             "small" => CodeModel::Small,
             "kernel" => CodeModel::Kernel,
             "medium" => CodeModel::Medium,
@@ -352,7 +350,6 @@ impl FromStr for CodeModel {
 impl ToJson for CodeModel {
     fn to_json(&self) -> Json {
         match *self {
-            CodeModel::Tiny => "tiny",
             CodeModel::Small => "small",
             CodeModel::Kernel => "kernel",
             CodeModel::Medium => "medium",

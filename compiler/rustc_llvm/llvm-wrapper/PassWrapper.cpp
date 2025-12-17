@@ -305,7 +305,6 @@ extern "C" bool LLVMRustHasFeature(LLVMTargetMachineRef TM,
 }
 
 enum class LLVMRustCodeModel {
-  Tiny,
   Small,
   Kernel,
   Medium,
@@ -315,12 +314,6 @@ enum class LLVMRustCodeModel {
 
 static Optional<CodeModel::Model> fromRust(LLVMRustCodeModel Model) {
   switch (Model) {
-  case LLVMRustCodeModel::Tiny:
-#if LLVM_VERSION_GE(9, 0)
-    return CodeModel::Tiny;
-#else
-    return CodeModel::Small;
-#endif
   case LLVMRustCodeModel::Small:
     return CodeModel::Small;
   case LLVMRustCodeModel::Kernel:
@@ -332,7 +325,7 @@ static Optional<CodeModel::Model> fromRust(LLVMRustCodeModel Model) {
   case LLVMRustCodeModel::None:
     return None;
   default:
-    report_fatal_error("Bad CodeModel.");
+    return None;
   }
 }
 
@@ -1362,11 +1355,15 @@ extern "C" void LLVMRustSetModulePIELevel(LLVMModuleRef M) {
 
 extern "C" void LLVMRustSetModuleCodeModel(LLVMModuleRef M,
                                            LLVMRustCodeModel Model) {
+#if LLVM_VERSION_GE(9, 0)
   auto CM = fromRust(Model);
   if (!CM.hasValue())
     return;
-#if LLVM_VERSION_GE(9, 0)
   unwrap(M)->setCodeModel(*CM);
+#else
+  // No-op
+  (void)M;
+  (void)Model;
 #endif
 }
 

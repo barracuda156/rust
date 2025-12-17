@@ -458,7 +458,6 @@ pub enum RelocModel {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub enum CodeModel {
-    Tiny,
     Small,
     Kernel,
     Medium,
