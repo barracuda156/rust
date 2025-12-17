@@ -12,6 +12,8 @@ pub enum Arch {
     X86_64_macabi,
     Arm64_macabi,
     Arm64_sim,
+    PowerPc,
+    PowerPc64,
 }
 
 fn target_cpu(arch: Arch) -> String {
@@ -24,13 +26,15 @@ fn target_cpu(arch: Arch) -> String {
         X86_64_macabi => "core2",
         Arm64_macabi => "apple-a12",
         Arm64_sim => "apple-a12",
+        PowerPc => "g4",
+        PowerPc64 => "ppc64",
     }
     .to_string()
 }
 
 fn link_env_remove(arch: Arch) -> Vec<String> {
     match arch {
-        Armv7 | Armv7s | Arm64 | I386 | X86_64 | Arm64_sim => {
+        Armv7 | Armv7s | Arm64 | I386 | X86_64 | Arm64_sim | PowerPc | PowerPc64 => {
             vec!["MACOSX_DEPLOYMENT_TARGET".to_string()]
         }
         X86_64_macabi | Arm64_macabi => vec!["IPHONEOS_DEPLOYMENT_TARGET".to_string()],
