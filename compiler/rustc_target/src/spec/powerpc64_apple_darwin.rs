@@ -6,11 +6,10 @@ pub fn target() -> Target {
     base.cpu = "ppc64".to_string();
     base.max_atomic_width = Some(64);
     base.pre_link_args.insert(LinkerFlavor::Gcc, vec!["-arch".to_string(), "ppc64".to_string()]);
-    base.link_env_remove.extend(super::apple_base::macos_link_env_remove());
     base.eliminate_frame_pointer = false;
 
     let arch = "powerpc64";
-    let llvm_target = super::apple_base::macos_llvm_target(&arch);
+    let llvm_target = super::apple_base::macos_llvm_target_ppc(&arch);
 
     Target {
         llvm_target,

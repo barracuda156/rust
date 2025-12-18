@@ -71,6 +71,10 @@ pub fn macos_llvm_target(arch: &str) -> String {
     format!("{}-apple-macosx{}.{}.0", arch, major, minor)
 }
 
+pub fn macos_llvm_target_ppc(arch: &str) -> String {
+    format!("{}-apple-darwin", arch)
+}
+
 pub fn macos_link_env_remove() -> Vec<String> {
     let mut env_remove = Vec::with_capacity(2);
     // Remove the `SDKROOT` environment variable if it's clearly set for the wrong platform, which
