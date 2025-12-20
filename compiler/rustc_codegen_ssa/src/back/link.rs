@@ -2509,8 +2509,23 @@ fn get_apple_sdk_root(sdk_name: &str) -> Result<String, String> {
             _ => return Ok(sdkroot),
         }
     }
-    // Fallback to standard sysroot:
-    Ok("/".to_string()),
+    let res =
+        Command::new("xcrun").arg("--show-sdk-path").arg("-sdk").arg(sdk_name).output().and_then(
+            |output| {
+                if output.status.success() {
+                    Ok(String::from_utf8(output.stdout).unwrap())
+                } else {
+                    let error = String::from_utf8(output.stderr);
+                    let error = format!("process exit with error: {}", error.unwrap());
+                    Err(io::Error::new(io::ErrorKind::Other, &error[..]))
+                }
+            },
+        );
+
+    match res {
+        Ok(output) => Ok(output.trim().to_string()),
+        Err(_) => Ok("/".to_string()),
+    }
 }
 
 fn add_gcc_ld_path(cmd: &mut dyn Linker, sess: &Session, flavor: LinkerFlavor) {
